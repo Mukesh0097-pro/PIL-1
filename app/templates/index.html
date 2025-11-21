@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>indxai | Investor Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0a0a0a; color: #e0e0e0; font-family: 'Courier New', monospace; }
+        .terminal-green { color: #00ff41; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .cursor::after { content: '█'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4 md:p-8 max-w-5xl mx-auto">
+
+    <header class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tighter text-white">indxai<span class="text-xs align-top ml-1 text-gray-500">PLATFORM</span></h1>
+            <p class="text-xs text-gray-500">PIL-VAE HYBRID ENGINE v1.0</p>
+        </div>
+        <div class="flex gap-4 text-xs">
+            <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>ONLINE</div>
+            <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>EDGE MODE</div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row gap-4 overflow-hidden">
+        
+        <section class="flex-1 glass rounded-lg p-4 flex flex-col">
+            <div id="chat-log" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                <div class="mb-2">
+                    <span class="text-blue-400 font-bold">[SYSTEM]:</span>
+                    <span class="text-gray-300">Kernel loaded. Memory hydrated with core tensors. Ready for queries.</span>
+                </div>
+                {% for msg in history %}
+                <div class="mb-2">
+                    <span class="text-{{ 'green' if msg.role == 'user' else 'blue' }}-400 font-bold">[{{ msg.role.upper() }}]:</span>
+                    <span class="text-gray-300">{{ msg.content }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <form id="chat-form" class="flex gap-2 border-t border-gray-700 pt-4">
+                <span class="text-green-500 font-bold self-center">>></span>
+                <input type="text" id="query-input" name="query" 
+                       class="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-gray-600" 
+                       placeholder="Ask about the tech, or search live web..." autocomplete="off" autofocus>
+                <select name="mode" id="mode-select" class="bg-black text-xs border border-gray-700 rounded px-2 text-gray-400 focus:outline-none">
+                    <option value="assistant">Assistant</option>
+                    <option value="wearable">Wearable (JSON)</option>
+                </select>
+                <button type="submit" class="bg-white text-black px-4 py-1 rounded text-sm font-bold hover:bg-gray-200">EXEC</button>
+            </form>
+        </section>
+
+        <aside class="hidden md:block w-64 glass rounded-lg p-4 text-xs">
+            <h3 class="text-gray-500 font-bold mb-4 border-b border-gray-700 pb-2">ENGINE TELEMETRY</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <div class="text-gray-500 mb-1">LATENCY (LAST RUN)</div>
+                    <div id="latency-display" class="text-2xl font-bold terminal-green">0.00ms</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 mb-1">MODEL ARCHITECTURE</div>
+                    <div class="font-mono">
+                        Reading: Transformer (L6)<br>
+                        Writing: PIL-VAE (Analytic)
+                    </div>
+                </div>
+                <div>
+                    <div class="text-gray-500 mb-1">MEMORY STATUS</div>
+                    <div class="font-mono text-blue-400">
+                        Vector DB: Active<br>
+                        RAG: Enabled<br>
+                        Browser: Connected
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const form = document.getElementById('chat-form');
+        const log = document.getElementById('chat-log');
+        const latencyDisp = document.getElementById('latency-display');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('query-input');
+            const mode = document.getElementById('mode-select').value;
+            const query = input.value;
+            if (!query) return;
+
+            // UI Update (User)
+            log.innerHTML += `<div class="mb-2"><span class="text-green-400 font-bold">[USER]:</span> <span class="text-white">${query}</span></div>`;
+            input.value = '';
+            log.scrollTop = log.scrollHeight;
+
+            // API Call
+            const formData = new FormData();
+            formData.append('query', query);
+            formData.append('mode', mode);
+
+            try {
+                const res = await fetch('/chat', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                // UI Update (AI)
+                log.innerHTML += `<div class="mb-2"><span class="text-blue-400 font-bold">[AI]:</span> <span class="text-gray-300">${data.response}</span></div>`;
+                latencyDisp.innerText = data.latency;
+                log.scrollTop = log.scrollHeight;
+            } catch (err) {
+                log.innerHTML += `<div class="text-red-500">[ERROR]: Connection lost.</div>`;
+            }
+        });
+    </script>
+</body>
+</html>
