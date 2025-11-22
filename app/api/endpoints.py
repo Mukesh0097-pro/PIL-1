@@ -9,6 +9,25 @@ templates = Jinja2Templates(directory="app/templates")
 # Initialize Single Instance of OS
 os_instance = IndxAI_OS()
 
+# ... existing imports ...
+
+
+@router.post("/train-knowledge")
+async def train(
+    background_tasks: BackgroundTasks,  # Add this parameter
+    text_data: str = Form(...),
+):
+    """
+    Industry Grade: Training happens in background.
+    Server does not freeze.
+    """
+    # Send the heavy lifting to the background
+    background_tasks.add_task(os_instance.learn_new_data, text_data)
+
+    return {
+        "status": "Training started",
+        "message": "You can continue chatting while I learn.",
+    }
 
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
