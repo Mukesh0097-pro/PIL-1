@@ -1,11 +1,15 @@
 import numpy as np
 import time
-import random
+import logging
 from sentence_transformers import SentenceTransformer
 from jinja2 import Template
 from app.core.config import settings
 from app.core.memory import MemoryLayer
 from app.core.tools import BrowserTool
+
+# Setup Professional Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("indxai.engine")
 
 
 class PILVAEDecoder:
@@ -14,45 +18,45 @@ class PILVAEDecoder:
     def __init__(self, latent_dim):
         self.latent_dim = latent_dim
         self.weights = {}
-        self.mean = None
-        self.std = None
+        self.is_trained = False
 
     def train_analytical(self, X_embeddings):
-        # Check if we have enough data to train
+        """Mathematically solves weights (O(N^2))"""
         if len(X_embeddings) < 2:
-            # Not enough data for covariance, use identity init
-            self.weights["encoder"] = np.eye(X_embeddings.shape[1], self.latent_dim)
-            self.weights["decoder"] = np.eye(self.latent_dim, X_embeddings.shape[1])
-            self.mean = np.zeros(X_embeddings.shape[1])
-            self.std = np.ones(X_embeddings.shape[1])
             return
 
-        # 1. Normalize
-        self.mean = np.mean(X_embeddings, axis=0)
-        self.std = np.std(X_embeddings, axis=0) + 1e-6
-        X = (X_embeddings - self.mean) / self.std
+        try:
+            # 1. Normalize
+            self.mean = np.mean(X_embeddings, axis=0)
+            self.std = np.std(X_embeddings, axis=0) + 1e-6
+            X = (X_embeddings - self.mean) / self.std
 
-        # 2. Encoder (PCA-like)
-        cov = np.cov(X.T)
-        eigvals, eigvecs = np.linalg.eigh(cov)
-        idx = np.argsort(eigvals)[::-1][: self.latent_dim]
-        W_enc = eigvecs[:, idx]
-        self.weights["encoder"] = W_enc
+            # 2. Encoder (SVD/PCA)
+            # Using SVD is more numerically stable than np.cov for wide matrices
+            u, s, vt = np.linalg.svd(X.T, full_matrices=False)
+            W_enc = u[:, : self.latent_dim]
 
-        # 3. Decoder (Pseudoinverse / Ridge Regression)
-        Z = X @ W_enc
-        lambda_reg = 0.1
-        Z_prime = np.linalg.inv(Z.T @ Z + lambda_reg * np.eye(self.latent_dim)) @ Z.T
-        W_dec = Z_prime @ X
-        self.weights["decoder"] = W_dec
+            # 3. Decoder (Pseudoinverse / Ridge Regression)
+            Z = X @ W_enc
+            lambda_reg = 0.1
+            # Formula: W_dec = (Z.T * Z + λI)^-1 * Z.T * X
+            Z_inv = np.linalg.inv(Z.T @ Z + lambda_reg * np.eye(self.latent_dim)) @ Z.T
+            W_dec = Z_inv @ X
+
+            self.weights = {"encoder": W_enc, "decoder": W_dec}
+            self.is_trained = True
+            logger.info(
+                f"✅ PIL-VAE Retrained Analytically on {len(X_embeddings)} vectors."
+            )
+        except Exception as e:
+            logger.error(f"Math Error: {e}")
 
 
 class IndxAI_OS:
-    """Main Operating System Class"""
+    """The Dynamic Operating System"""
 
     def __init__(self):
-        print("🚀 Booting indxai Hybrid Engine...")
-
+        logger.info("🚀 Booting indxai OS (Autonomous Mode)...")
         self.memory = MemoryLayer(embedding_dim=settings.EMBEDDING_DIM)
         self.browser = BrowserTool()
         self.pil_vae = PILVAEDecoder(latent_dim=settings.LATENT_DIM)
@@ -60,108 +64,87 @@ class IndxAI_OS:
         try:
             self.transformer = SentenceTransformer(settings.TRANSFORMER_MODEL)
         except Exception as e:
-            print(f"⚠️ Model load failed: {e}")
+            logger.warning(f"Transformer failed: {e}")
             self.transformer = None
 
-        self.mode = "assistant"
-        self._seed_knowledge()
+        # Boot: Load existing memory (Persistence) instead of hardcoded seeds
+        vecs = self.memory.get_all_vectors()
+        if len(vecs) > 0:
+            self.pil_vae.train_analytical(vecs)
 
     def encode(self, text):
         if self.transformer:
             return self.transformer.encode(text)
         return np.random.randn(settings.EMBEDDING_DIM)
 
-    def _seed_knowledge(self):
-        """
-        Seed with Startup Info AND General Fallbacks.
-        This prevents 'Empty Brain' syndrome.
-        """
-        facts = [
-            "indxai is a startup building gradient-free generative AI.",
-            "PIL-VAE is 17x faster than GANs and 900x faster than Diffusion.",
-            "We target edge devices and enterprise on-premise servers.",
-            "The hybrid engine uses a Mini-Transformer for reading and PIL for writing.",
-        ]
+    def learn(self, text_blob: str, source: str = "web"):
+        """Instant Ingestion"""
+        sentences = [s.strip() for s in text_blob.split(".") if len(s) > 20]
+        for s in sentences:
+            self.memory.add(s, self.encode(s), source)
 
-        vectors = []
-        for f in facts:
-            vec = self.encode(f)
-            vectors.append(vec)
-            self.memory.add(f, vec, {"type": "core_knowledge"})
+        # Retrain instantly
+        if len(self.memory.vectors) > 0:
+            self.pil_vae.train_analytical(self.memory.get_all_vectors())
+        return len(sentences)
 
-        if len(vectors) > 0:
-            self.pil_vae.train_analytical(np.array(vectors))
+    def run_query(self, query: str):
+        start = time.time()
+        query_vec = self.encode(query)
 
-    def run_query(self, user_input: str):
-        start_time = time.time()
+        # 1. Check Internal Memory
+        docs = self.memory.retrieve(query_vec, top_k=3)
+        best_score = docs[0]["score"] if docs else 0
 
-        # 1. Encode
-        query_vec = self.encode(user_input)
+        # 2. INTENT ANALYSIS (Privacy Guardrail)
+        # If query mentions 'my', 'email', 'file', strictly use Memory.
+        is_personal = any(
+            w in query.lower()
+            for w in ["my", "email", "slack", "private", "file", "doc"]
+        )
 
-        # 2. Retrieval (RAG)
-        docs = self.memory.retrieve(query_vec)
+        # 3. Knowledge Gap Analysis
+        # If score is low AND it's not personal, we need the web.
+        knowledge_gap = best_score < 0.45
 
-        # CHECK: Is the retrieved memory actually relevant?
-        # In a real system we check cosine score. Here we'll trust the browser more.
-        internal_context = " ".join([d["text"] for d in docs]) if docs else ""
+        context = ""
+        source_label = "MEMORY"
 
-        # 3. Browser Check (Aggressive)
-        # Always try browser if the query looks like a question about the world
-        live_data = ""
-        triggers = [
-            "who",
-            "what",
-            "where",
-            "when",
-            "price",
-            "news",
-            "current",
-            "president",
-            "weather",
-        ]
-
-        if any(k in user_input.lower() for k in triggers):
-            try:
-                live_data = self.browser.search(user_input)
-            except:
-                live_data = "Web search failed (Cloud IP Blocked)."
-
-        # 4. Logic Routing
-        # If we found live data, use THAT. Ignore internal memory about "edge devices".
-        final_context = ""
-
-        if live_data and "No relevant" not in live_data:
-            final_context = f"Live Web Data: {live_data}"
-        else:
-            # Fallback to internal memory only if it seems relevant
-            # (Simple heuristic: if query contains 'indxai' or 'pil', use memory)
-            if (
-                "indxai" in user_input.lower()
-                or "pil" in user_input.lower()
-                or "fast" in user_input.lower()
-            ):
-                final_context = f"Internal Database: {internal_context}"
+        if is_personal:
+            # PRIVATE MODE
+            if best_score > 0.35:
+                context = " ".join([d["text"] for d in docs])
             else:
-                # If we know nothing and browser failed
-                final_context = "I am a specialized Edge AI trained on indxai technology. I don't have general world knowledge installed in this demo version."
+                context = "I checked the internal database but found no matching private records. (Run 'real_connectors.py' to ingest data)"
 
-        # 5. Generation Template
-        if self.mode == "wearable":
-            response = f"{{ 'answer': '{final_context[:100]}...', 'latency': 'low' }}"
+        elif knowledge_gap:
+            # PUBLIC SEARCH MODE
+            logger.info(f"🧠 Searching Web for: {query}")
+            web_result = self.browser.search(query)
+
+            if web_result and "blocked" not in web_result:
+                context = web_result
+                source_label = "LIVE WEB"
+                # AUTO-LEARNING: Save this so we know it next time
+                self.learn(web_result, source="auto_web")
+            else:
+                context = "I tried to search the web but the connection failed. Falling back to what I know."
         else:
-            tmpl_str = """
-            [Analysis]: Processing query...
-            [Context]: {{final_context}}
-            [Response]: {{final_context}}
-            """
-            t = Template(tmpl_str)
-            response = t.render(final_context=final_context)
+            # MEMORY MODE
+            context = " ".join([d["text"] for d in docs])
 
+        # 4. Generation
+        tmpl_str = """
+        [Analysis]: Processing...
+        [Source]: {{source_label}}
+        [Response]: {{context}}
+        """
+        response = Template(tmpl_str).render(source_label=source_label, context=context)
         response = response.replace("\n", " ").strip()
 
         # Log
-        self.memory.add_history("user", user_input)
+        self.memory.add_history("user", query)
         self.memory.add_history("ai", response)
 
-        latency = (time.time() - start_time) * 1000
+        latency = (time.time() - start) * 1000
         return response, latency
