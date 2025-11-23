@@ -63,7 +63,11 @@ class PILVAEDecoder:
 
             Z = X @ W_enc
             lambda_reg = 0.1
-            Z_inv = np.linalg.inv(Z.T @ Z + lambda_reg * np.eye(self.latent_dim)) @ Z.T
+            # Use the actual dimension of Z (which might be smaller than latent_dim if we have few samples)
+            current_latent_dim = Z.shape[1]
+            Z_inv = (
+                np.linalg.inv(Z.T @ Z + lambda_reg * np.eye(current_latent_dim)) @ Z.T
+            )
             W_dec = Z_inv @ X
 
             self.weights = {"encoder": W_enc, "decoder": W_dec}
