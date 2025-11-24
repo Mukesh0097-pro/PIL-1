@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Form, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from app.core.engine import IndxAI_OS
 
@@ -29,6 +29,7 @@ async def train(
         "message": "You can continue chatting while I learn.",
     }
 
+
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Render the Investor Dashboard"""
@@ -41,10 +42,8 @@ async def home(request: Request):
 async def chat(request: Request, query: str = Form(...), mode: str = Form("assistant")):
     """API Endpoint for interaction"""
     os_instance.mode = mode
-    response, latency = os_instance.run_query(query)
-
-    return JSONResponse(
-        {"response": response, "latency": f"{latency:.2f}ms", "mode": mode}
+    return StreamingResponse(
+        os_instance.run_query_generator(query), media_type="application/x-ndjson"
     )
 
 

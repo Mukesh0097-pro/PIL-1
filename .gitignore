@@ -37,3 +37,15 @@ ENV/
 # Secrets
 client_secret.json
 gmail_token.json
+
+# OAuth tokens and local credentials
+token.json
+credentials.json
+credentials_*.json
+
+# Service account keys
+service_account*.json
+
+# Local private key files
+*.pem
+*.key

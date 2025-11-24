@@ -10,6 +10,7 @@
         .terminal-green { color: #00ff41; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .cursor::after { content: '█'; animation: blink 1s infinite; }
+        .thinking { animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     </style>
 </head>
@@ -35,7 +36,7 @@
                     <span class="text-gray-300">Kernel loaded. Memory hydrated with core tensors. Ready for queries.</span>
                 </div>
                 {% for msg in history %}
-                <div class="mb-2">
+                <div class="mb-2 break-words whitespace-pre-wrap">
                     <span class="text-{{ 'green' if msg.role == 'user' else 'blue' }}-400 font-bold">[{{ msg.role.upper() }}]:</span>
                     <span class="text-gray-300">{{ msg.content }}</span>
                 </div>
@@ -66,7 +67,6 @@
                 <div>
                     <div class="text-gray-500 mb-1">MODEL ARCHITECTURE</div>
                     <div class="font-mono">
-                        Reading: Transformer (L6)<br>
                         Writing: PIL-VAE (Analytic)
                     </div>
                 </div>
@@ -99,6 +99,14 @@
             input.value = '';
             log.scrollTop = log.scrollHeight;
 
+            // Thinking Indicator
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = "thinking-indicator";
+            thinkingDiv.className = "mb-2 text-gray-500";
+            thinkingDiv.innerHTML = `<span class="text-blue-400 font-bold">[AI]:</span> <span class="thinking">...</span>`;
+            log.appendChild(thinkingDiv);
+            log.scrollTop = log.scrollHeight;
+
             // API Call
             const formData = new FormData();
             formData.append('query', query);
@@ -106,13 +114,49 @@
 
             try {
                 const res = await fetch('/chat', { method: 'POST', body: formData });
-                const data = await res.json();
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
 
-                // UI Update (AI)
-                log.innerHTML += `<div class="mb-2"><span class="text-blue-400 font-bold">[AI]:</span> <span class="text-gray-300">${data.response}</span></div>`;
-                latencyDisp.innerText = data.latency;
-                log.scrollTop = log.scrollHeight;
+                let isFirstToken = true;
+                let aiTextSpan = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    if (isFirstToken) {
+                        const indicator = document.getElementById('thinking-indicator');
+                        if (indicator) indicator.remove();
+                        
+                        const aiMsgDiv = document.createElement('div');
+                        aiMsgDiv.className = "mb-2 break-words whitespace-pre-wrap";
+                        aiMsgDiv.innerHTML = `<span class="text-blue-400 font-bold">[AI]:</span> <span class="text-gray-300"></span>`;
+                        log.appendChild(aiMsgDiv);
+                        aiTextSpan = aiMsgDiv.querySelector('span.text-gray-300');
+                        isFirstToken = false;
+                    }
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+                    for (const line of lines) {
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.type === 'token') {
+                                aiTextSpan.innerText += data.content;
+                                log.scrollTop = log.scrollHeight;
+                            } else if (data.type === 'stats') {
+                                latencyDisp.innerText = data.latency;
+                            }
+                        } catch (e) {
+                            console.error("Error parsing JSON chunk", e);
+                        }
+                    }
+                }
             } catch (err) {
+                console.error(err);
+                const indicator = document.getElementById('thinking-indicator');
+                if (indicator) indicator.remove();
                 log.innerHTML += `<div class="text-red-500">[ERROR]: Connection lost.</div>`;
             }
         });
