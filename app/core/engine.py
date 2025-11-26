@@ -284,18 +284,43 @@ class IndxAI_OS:
             query_vec, query, forced_context=context_data
         )
 
-        # 5. Conversational Formatting & Streaming
-        final_output = (
-            f"Hey, checking {source_label} for you...\n\n"
-            f"{reasoned_text}\n\nHope that helps!"
-        )
+        # 5. Output Formatting based on Mode
+        if self.mode == "wearable":
+            # Wearable Mode: Return pure JSON data (concise, no fluff)
+            clean_summary = (
+                reasoned_text.replace("**Analysis**:", "")
+                .replace("**Evidence**:", "")
+                .replace("**Conclusion**:", "")
+                .strip()
+            )
+            wearable_payload = {
+                "intent": source_label,
+                "summary": clean_summary,
+                "timestamp": time.time(),
+            }
+            # Stream it as a code block for the demo UI
+            json_str = json.dumps(wearable_payload, indent=2)
+            full_response = "```json\n" + json_str + "\n```"
 
-        # Stream character by character
-        chunk_size = 3
-        for i in range(0, len(final_output), chunk_size):
-            chunk = final_output[i : i + chunk_size]
-            yield json.dumps({"type": "token", "content": chunk}) + "\n"
-            time.sleep(0.03)
+            # Stream character by character
+            chunk_size = 3
+            for i in range(0, len(full_response), chunk_size):
+                chunk = full_response[i : i + chunk_size]
+                yield json.dumps({"type": "token", "content": chunk}) + "\n"
+                time.sleep(0.03)
+        else:
+            # Assistant Mode: Conversational
+            final_output = (
+                f"Hey, checking {source_label} for you...\n\n"
+                f"{reasoned_text}\n\nHope that helps!"
+            )
+
+            # Stream character by character
+            chunk_size = 3
+            for i in range(0, len(final_output), chunk_size):
+                chunk = final_output[i : i + chunk_size]
+                yield json.dumps({"type": "token", "content": chunk}) + "\n"
+                time.sleep(0.03)
 
         # Final stats & Metadata
         latency = (time.time() - start) * 1000
