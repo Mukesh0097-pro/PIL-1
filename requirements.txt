@@ -1,15 +1,44 @@
+# =============================================================================
+# PIL-VAE Engine Dependencies
+# =============================================================================
+
+# PyTorch (CPU version for smaller deployment)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.0.0
+
+# Core Dependencies
 numpy>=1.24.0
 fastapi==0.104.1
 uvicorn==0.24.0
+gunicorn==21.2.0
+
+# AI/ML
 sentence-transformers>=3.0.1
-duckduckgo-search==4.1.1
+faiss-cpu>=1.7.4
+
+# Search
+ddgs>=7.0.0
+
+# Templates & Forms
 jinja2>=3.1.2
 python-multipart>=0.0.6
+
+# HTTP & Utils
 requests>=2.31.0
 python-dotenv>=1.0.0
-gunicorn==21.2.0
+
+# Google APIs (Gmail Integration)
 google-api-python-client>=2.100.0
 google-auth-oauthlib
 google-auth-httplib2
+
+# Configuration & Validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Resilience & Rate Limiting
+tenacity>=8.2.0
+slowapi>=0.1.9
+
+# Structured Logging
+structlog>=23.1.0

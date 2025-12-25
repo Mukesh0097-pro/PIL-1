@@ -3,315 +3,829 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>indxai | Investor Demo</title>
+    <title>Indxai | PIL-VAE Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        beige: {
+                            50: '#FDFCFB',
+                            100: '#F9F6F2',
+                            200: '#EDE8E0',
+                            300: '#DDD5C9',
+                        },
+                        cherry: {
+                            50: '#FDF2F4',
+                            100: '#FCE7EA',
+                            200: '#F9D0D7',
+                            300: '#F4A9B6',
+                            400: '#EC7A8F',
+                            500: '#E04F6C',
+                            600: '#C93556',
+                            700: '#A92B47',
+                            800: '#8C2640',
+                            900: '#77243B',
+                            950: '#42101C',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.4s ease-out forwards',
+                        'bounce': 'bounce 1s infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body { background-color: #0a0a0a; color: #e0e0e0; font-family: 'Courier New', monospace; }
-        .terminal-green { color: #00ff41; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .cursor::after { content: '█'; animation: blink 1s infinite; }
-        .thinking { animation: blink 1s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(201, 53, 86, 0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(201, 53, 86, 0.4); }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Markdown styling */
+        .markdown-content p { margin-bottom: 0.75rem; }
+        .markdown-content p:last-child { margin-bottom: 0; }
+        .markdown-content ul { list-style-type: disc; margin-left: 1rem; margin-bottom: 0.75rem; }
+        .markdown-content ol { list-style-type: decimal; margin-left: 1rem; margin-bottom: 0.75rem; }
+        .markdown-content li { padding-left: 0.25rem; margin-bottom: 0.25rem; }
+        .markdown-content a { color: #C93556; font-weight: 500; }
+        .markdown-content a:hover { text-decoration: underline; }
+        .markdown-content code { background: #F9F6F2; color: #77243B; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-size: 0.875rem; font-family: monospace; border: 1px solid #EDE8E0; }
+        .markdown-content pre { background: #F9F6F2; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.75rem 0; border: 1px solid #EDE8E0; }
+        .markdown-content pre code { background: transparent; border: none; padding: 0; }
+        .markdown-content h1 { font-size: 1.25rem; font-weight: 700; margin: 1.25rem 0 0.75rem; color: #77243B; font-family: 'Playfair Display', serif; }
+        .markdown-content h2 { font-size: 1.125rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #8C2640; font-family: 'Playfair Display', serif; }
+        .markdown-content h3 { font-size: 1rem; font-weight: 700; margin: 0.75rem 0 0.5rem; color: #8C2640; font-family: 'Playfair Display', serif; }
+        .markdown-content blockquote { border-left: 4px solid #F9D0D7; padding-left: 1rem; font-style: italic; color: #6B7280; margin: 0.75rem 0; }
+        
+        /* Animations */
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1); opacity: 0.3; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col p-4 md:p-8 max-w-5xl mx-auto">
+<body class="h-screen overflow-hidden bg-beige-100 text-gray-900">
 
-    <header class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-6">
-            <div class="flex gap-2">
-                <button id="btn-sidebar" class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Toggle Sidebar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M9 3v18"/></svg>
-                </button>
-                <button id="btn-new-chat" class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="New Chat">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                </button>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold tracking-tighter text-white">indxai<span class="text-xs align-top ml-1 text-gray-500">PLATFORM</span></h1>
-                <p class="text-xs text-gray-500">PIL-VAE HYBRID ENGINE v1.0</p>
-            </div>
-        </div>
-        <div class="flex gap-4 text-xs">
-            <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>ONLINE</div>
-            <button id="btn-edge-mode" class="flex items-center hover:text-white transition-colors text-gray-400">
-                <span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>EDGE MODE
-            </button>
-        </div>
-    </header>
-
-    <main class="flex-1 flex flex-col md:flex-row gap-4 overflow-hidden">
+    <div class="flex h-screen overflow-hidden relative">
         
-        <section class="flex-1 min-w-0 glass rounded-lg p-4 flex flex-col">
-            <div id="chat-log" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
-                <div class="mb-2">
-                    <span class="text-blue-400 font-bold">[SYSTEM]:</span>
-                    <span class="text-gray-300">Kernel loaded. Memory hydrated with core tensors. Ready for queries.</span>
-                </div>
-                {% for msg in history %}
-                <div class="mb-2 break-words whitespace-pre-wrap">
-                    <span class="text-{{ 'green' if msg.role == 'user' else 'blue' }}-400 font-bold">[{{ msg.role.upper() }}]:</span>
-                    <span class="text-gray-300">{{ msg.content }}</span>
-                </div>
-                {% endfor %}
+        <!-- Mobile Header -->
+        <div id="mobile-header" class="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-md border-b border-beige-200 z-30 flex items-center justify-between px-4 transition-all duration-300">
+            <div class="flex items-center gap-2">
+                <span class="font-serif font-bold text-lg tracking-tight text-cherry-900">Indxai</span>
             </div>
-
-            <form id="chat-form" class="flex gap-2 border-t border-gray-700 pt-4">
-                <span class="text-green-500 font-bold self-center">>></span>
-                <input type="text" id="query-input" name="query" 
-                       class="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-gray-600" 
-                       placeholder="Ask about the tech, or search live web..." autocomplete="off" autofocus>
-                <select name="mode" id="mode-select" title="Select Mode" class="bg-black text-xs border border-gray-700 rounded px-2 text-gray-400 focus:outline-none">
-                    <option value="assistant">Assistant</option>
-                    <option value="wearable">Wearable (JSON)</option>
-                </select>
-                <button type="submit" class="bg-white text-black px-4 py-1 rounded text-sm font-bold hover:bg-gray-200">EXEC</button>
-            </form>
-        </section>
-
-        <aside class="hidden md:block w-64 shrink-0 glass rounded-lg p-4 text-xs">
-            <h3 class="text-gray-500 font-bold mb-4 border-b border-gray-700 pb-2">ENGINE TELEMETRY</h3>
-            
-            <div class="space-y-4">
-                <div>
-                    <div class="text-gray-500 mb-1">LATENCY (LAST RUN)</div>
-                    <div id="latency-display" class="text-2xl font-bold terminal-green">0.00ms</div>
-                </div>
-                <div>
-                    <div class="text-gray-500 mb-1">MODEL ARCHITECTURE</div>
-                    <div class="font-mono">
-                        Writing: PIL-VAE (Analytic)
-                    </div>
-                </div>
-                <div>
-                    <div class="text-gray-500 mb-1">MEMORY STATUS</div>
-                    <div class="font-mono text-blue-400">
-                        Vector DB: Active<br>
-                        RAG: Enabled<br>
-                        Browser: Connected
-                    </div>
-                </div>
-            </div>
-        </aside>
-    </main>
-
-    <div id="tech-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-gray-900 border border-gray-700 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative">
-            <button id="close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white" title="Close Modal">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <button id="btn-mobile-sidebar" class="text-cherry-900 p-1">
+                <svg id="menu-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                <svg id="close-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <h2 class="text-xl font-bold text-white mb-4">Technical Architecture: Edge Mode</h2>
-            <div class="space-y-4 text-sm text-gray-300 font-mono h-96 overflow-y-auto pr-2">
-                <p class="text-green-400 font-bold">"We use Cython to transpile our proprietary math kernels into C++, and then compile that to WebAssembly."</p>
-                
-                <h3 class="text-white font-bold mt-4">1. The Concept: AOT Compilation</h3>
-                <p>Standard Python is interpreted (slow). We translate logic to C++ (fast) and then to WASM (browser-native).</p>
-                
-                <h3 class="text-white font-bold mt-4">2. The Pipeline</h3>
-                <ul class="list-disc pl-5 space-y-2">
-                    <li><span class="text-blue-400">Path A (Logic):</span> Python -> Cython -> C++ -> Emscripten -> <strong>.wasm</strong></li>
-                    <li><span class="text-blue-400">Path B (Model):</span> PyTorch -> ONNX -> <strong>ONNX Runtime Web</strong></li>
-                </ul>
+        </div>
 
-                <h3 class="text-white font-bold mt-4">3. Business Value</h3>
-                <ul class="list-disc pl-5 space-y-2">
-                    <li><strong>Zero Server Cost:</strong> Compute happens on client device.</li>
-                    <li><strong>Total Privacy:</strong> Data never leaves the browser.</li>
-                    <li><strong>Offline Capable:</strong> Works without internet.</li>
-                </ul>
+        <!-- Left Sidebar (History) -->
+        <div id="sidebar" class="fixed inset-y-0 left-0 z-40 h-full w-72 bg-cherry-900 text-beige-50 flex flex-col shadow-2xl lg:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]">
+            <div class="w-72 flex flex-col h-full overflow-hidden whitespace-nowrap">
+                
+                <!-- Sidebar Header -->
+                <div class="p-6 border-b border-cherry-800/50 flex items-center justify-between shrink-0 h-20">
+                    <h3 class="font-serif font-bold text-white text-lg tracking-tight">History</h3>
+                    <button id="btn-new-chat" class="text-[11px] uppercase tracking-widest font-semibold text-cherry-200 hover:text-white transition-colors border border-cherry-700 px-3 py-1 rounded-sm hover:border-cherry-500 hover:bg-cherry-800">
+                        New Chat
+                    </button>
+                </div>
+
+                <!-- Sessions List -->
+                <div id="sessions-list" class="flex-1 overflow-y-auto p-4 space-y-1 no-scrollbar">
+                    <!-- Sessions will be populated here -->
+                </div>
+
+                <!-- Sidebar Footer with Controls -->
+                <div class="p-4 border-t border-cherry-800/50 bg-cherry-950/30 shrink-0 space-y-3">
+                    <!-- TTS Toggle -->
+                    <button id="btn-tts" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-cherry-800/50 transition-all">
+                        <span id="tts-indicator" class="w-2 h-2 rounded-full bg-cherry-700"></span>
+                        <span class="text-sm text-cherry-200">Text-to-Speech</span>
+                        <span id="tts-status" class="ml-auto text-xs text-cherry-400">OFF</span>
+                    </button>
+                    
+                    <!-- Mode Select -->
+                    <select id="mode-select" class="w-full bg-cherry-800/50 text-cherry-100 text-sm border border-cherry-700 rounded-lg px-3 py-2 focus:outline-none focus:border-cherry-500 cursor-pointer">
+                        <option value="assistant" class="bg-cherry-900"> Assistant</option>
+                        <option value="wearable" class="bg-cherry-900"> Wearable</option>
+                    </select>
+                    
+                    <!-- Brand Footer -->
+                    <div class="flex flex-col pt-2">
+                        <span class="font-serif font-bold text-white tracking-wide">Indxai Pro</span>
+                        <span class="text-[10px] text-cherry-300 uppercase tracking-widest mt-1">PIL-VAE Engine v1.0</span>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Main Chat Area -->
+        <div id="main-content" class="flex-1 flex flex-col h-full relative z-0 transition-all duration-300 bg-beige-100 overflow-hidden pt-14 lg:pt-0" style="margin-left: 288px;">
+            
+            <!-- Sidebar Toggle (Desktop) -->
+            <button id="btn-sidebar-toggle" class="hidden lg:flex absolute top-1/2 -translate-y-1/2 z-50 w-5 h-12 items-center justify-center bg-white/80 backdrop-blur-sm border-y border-r border-beige-200 rounded-r-md shadow-sm text-cherry-900 hover:text-cherry-600 hover:bg-white hover:w-7 transition-all duration-200 opacity-70 hover:opacity-100" style="left: 0;">
+                <svg id="chevron-left" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <svg id="chevron-right" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Header (Desktop) -->
+            <header class="hidden lg:flex absolute top-0 left-0 right-0 z-10 items-center justify-between px-8 py-6 bg-gradient-to-b from-beige-100 to-transparent pointer-events-none">
+                <div class="flex flex-col animate-fade-in-up pointer-events-auto" style="animation-delay: 0.1s;">
+                    <h1 class="font-serif font-bold text-2xl tracking-tight text-cherry-900 leading-none">Indxai</h1>
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-cherry-900/60 font-medium mt-1">PIL-VAE Engine</span>
+                </div>
+                <div id="latency-badge" class="pointer-events-auto flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-beige-200 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cherry-600"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    <span id="latency-display" class="text-xs font-medium text-gray-600">0.00ms</span>
+                </div>
+            </header>
+
+            <!-- Chat Messages -->
+            <main id="chat-container" class="flex-1 overflow-y-auto pt-4 lg:pt-28 pb-32 px-4 sm:px-12 scroll-smooth custom-scrollbar">
+                <div id="chat-log" class="max-w-3xl mx-auto space-y-6">
+                    <!-- Welcome Screen -->
+                    <div id="welcome-screen" class="flex flex-col items-center justify-center h-[50vh] text-center space-y-4 animate-fade-in-up">
+                        <div class="w-16 h-1 bg-cherry-600"></div>
+                        <div>
+                            <h2 class="font-serif text-4xl font-semibold text-gray-900 tracking-tight mb-3">Indxai</h2>
+                            <p class="text-gray-500 text-base max-w-sm mx-auto leading-relaxed font-light">
+                                What can I create for you today?
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages Container -->
+                    <div id="messages-container" class="space-y-6 hidden">
+                        <!-- Messages will be appended here -->
+                    </div>
+                </div>
+            </main>
+
+            <!-- Input Area -->
+            <div class="absolute bottom-0 left-0 right-0 z-20 px-4 pb-6 lg:pb-8 pt-10 bg-gradient-to-t from-beige-100 via-beige-100/95 to-transparent">
+                <div class="max-w-3xl mx-auto">
+                    <form id="chat-form" class="relative">
+                        <div class="relative flex items-end gap-3 p-1 bg-white shadow-xl shadow-beige-300/60 rounded-xl border border-white ring-1 ring-beige-200 focus-within:ring-cherry-200/50 transition-all duration-300">
+                            
+                            <!-- Voice Dictation Button -->
+                            <div class="absolute left-2 bottom-2">
+                                <button type="button" id="btn-dictate" class="h-10 w-10 rounded-lg flex items-center justify-center transition-all duration-300 bg-transparent text-gray-400 hover:text-cherry-600 hover:bg-beige-100" title="Dictate">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                </button>
+                            </div>
+
+                            <textarea id="query-input" name="query" placeholder="Type your request..." rows="1" class="w-full max-h-[150px] py-4 pl-14 pr-28 bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-[16px] leading-6 text-gray-800 placeholder:text-gray-400/70 no-scrollbar font-light" style="min-height: 56px;" autocomplete="off"></textarea>
+                            
+                            <div class="absolute right-2 bottom-2 flex items-center gap-2">
+                                <!-- Live Mode Button -->
+                                <button type="button" id="btn-live" class="h-10 w-10 rounded-lg flex items-center justify-center transition-all duration-300 bg-transparent text-gray-400 hover:text-cherry-600 hover:bg-beige-100" title="Start Live Conversation">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></svg>
+                                </button>
+
+                                <!-- Send Button -->
+                                <button type="submit" id="btn-send" class="h-10 w-10 rounded-lg flex items-center justify-center transition-all duration-300 bg-beige-100 text-gray-400 cursor-not-allowed">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-center text-[10px] text-gray-400 mt-3 uppercase tracking-wider">Powered by PIL VAE</p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Session Overlay -->
+        <div id="live-overlay" class="fixed inset-0 z-[60] bg-beige-100/90 backdrop-blur-xl flex-col items-center justify-center animate-fade-in-up hidden">
+            <div class="relative flex flex-col items-center">
+                <!-- Visualizer -->
+                <div class="w-64 h-64 relative flex items-center justify-center mb-12">
+                    <div class="absolute inset-0 bg-cherry-500/20 rounded-full animate-ping" style="animation-duration: 3s;"></div>
+                    <div class="absolute inset-4 bg-cherry-500/30 rounded-full animate-ping" style="animation-duration: 2s;"></div>
+                    <div class="relative w-32 h-32 bg-gradient-to-br from-cherry-600 to-cherry-800 rounded-full shadow-2xl shadow-cherry-900/50 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></svg>
+                    </div>
+                </div>
+                
+                <h2 class="font-serif text-3xl text-cherry-900 mb-2">Indxai Live</h2>
+                <p class="text-cherry-800/60 tracking-wide uppercase text-xs font-semibold">Listening...</p>
+
+                <button id="btn-stop-live" class="mt-16 w-16 h-16 rounded-full bg-white border border-beige-200 shadow-lg flex items-center justify-center text-cherry-600 hover:bg-cherry-50 hover:scale-105 transition-all duration-300 group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:text-cherry-700"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden hidden" style="transition: opacity 0.3s;"></div>
+
     </div>
 
     <script>
-        const form = document.getElementById('chat-form');
-        const log = document.getElementById('chat-log');
-        const latencyDisp = document.getElementById('latency-display');
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        let sessions = [];
+        let currentSessionId = null;
+        let ttsEnabled = false;
+        let isDictating = false;
+        let recognition = null;
+        let sidebarOpen = window.innerWidth >= 1024;
 
-        form.addEventListener('submit', async (e) => {
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const chatForm = document.getElementById('chat-form');
+        const queryInput = document.getElementById('query-input');
+        const chatLog = document.getElementById('chat-log');
+        const messagesContainer = document.getElementById('messages-container');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const latencyDisplay = document.getElementById('latency-display');
+        const sessionsList = document.getElementById('sessions-list');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const btnSend = document.getElementById('btn-send');
+        const modeSelect = document.getElementById('mode-select');
+        const liveOverlay = document.getElementById('live-overlay');
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function generateId() {
+            return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatLatency(ms) {
+            return (ms / 1000).toFixed(2) + 's';
+        }
+
+        // ============================================
+        // SESSION MANAGEMENT
+        // ============================================
+        function createNewChat() {
+            const newSession = {
+                id: generateId(),
+                title: 'New Chat',
+                messages: [],
+                createdAt: Date.now(),
+            };
+            sessions.unshift(newSession);
+            currentSessionId = newSession.id;
+            renderSessions();
+            renderMessages();
+            if (window.innerWidth < 1024) closeSidebar();
+        }
+
+        function switchSession(sessionId) {
+            currentSessionId = sessionId;
+            renderSessions();
+            renderMessages();
+            if (window.innerWidth < 1024) closeSidebar();
+        }
+
+        function getCurrentSession() {
+            return sessions.find(s => s.id === currentSessionId);
+        }
+
+        function updateSessionTitle(session, firstMessage) {
+            if (session.title === 'New Chat' && firstMessage) {
+                session.title = firstMessage.slice(0, 30) + (firstMessage.length > 30 ? '...' : '');
+            }
+        }
+
+        function renderSessions() {
+            sessionsList.innerHTML = sessions.map(session => `
+                <button onclick="switchSession('${session.id}')" class="w-full text-left px-4 py-3 rounded-md transition-all duration-200 group relative border-l-2 ${
+                    currentSessionId === session.id
+                        ? 'bg-cherry-800 border-white text-white shadow-lg shadow-black/10'
+                        : 'bg-transparent border-transparent text-cherry-200 hover:bg-cherry-800/50 hover:text-white'
+                }">
+                    <div class="flex flex-col gap-1 overflow-hidden">
+                        <h4 class="text-sm font-medium truncate ${currentSessionId === session.id ? 'text-white' : 'text-cherry-100'}">
+                            ${session.title || 'New Conversation'}
+                        </h4>
+                        <p class="text-[11px] opacity-60 truncate font-light">
+                            ${session.messages.length > 0 
+                                ? session.messages[session.messages.length-1].content.slice(0, 40) + '...'
+                                : 'No messages'}
+                        </p>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        // ============================================
+        // MESSAGE RENDERING
+        // ============================================
+        function renderMessages() {
+            const session = getCurrentSession();
+            if (!session || session.messages.length === 0) {
+                welcomeScreen.classList.remove('hidden');
+                messagesContainer.classList.add('hidden');
+                messagesContainer.innerHTML = '';
+                return;
+            }
+
+            welcomeScreen.classList.add('hidden');
+            messagesContainer.classList.remove('hidden');
+            messagesContainer.innerHTML = session.messages.map((msg, idx) => 
+                createMessageHTML(msg, idx === session.messages.length - 1)
+            ).join('');
+            
+            scrollToBottom();
+        }
+
+        function createMessageHTML(message, isLast) {
+            const isUser = message.role === 'user';
+            const formattedContent = isUser ? escapeHtml(message.content) : marked.parse(message.content || '');
+            const messageId = message.id || 'msg-' + Date.now();
+            
+            let metaHtml = '';
+            if (!isUser && !message.isError) {
+                metaHtml = `
+                    <div class="meta-tags flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 ml-1 text-[10px] font-medium uppercase tracking-wider text-gray-300 hover:text-gray-500 transition-colors duration-300">
+                        <div class="flex items-center gap-1 bg-beige-200/30 hover:bg-beige-200/60 px-2 py-0.5 rounded transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            <span>${message.model || 'PIL-VAE'}</span>
+                        </div>
+                        ${message.latency ? `
+                            <div class="flex items-center gap-1" title="Generation Time">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                <span>${formatLatency(message.latency)}</span>
+                            </div>
+                        ` : ''}
+                        <div class="flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <span>${formatTime(message.createdAt)}</span>
+                        </div>
+                        <button onclick="copyMessage('${messageId}')" class="flex items-center gap-1 hover:text-cherry-600 transition-colors cursor-pointer px-2 py-0.5 rounded hover:bg-cherry-50" title="Copy Response">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copy</span>
+                        </button>
+                        ${message.sources && message.sources.length > 0 ? `
+                            <div class="flex items-center gap-1 text-cherry-400 hover:text-cherry-600 transition-colors" title="Sources">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                                <span>${message.sources.length} Sources</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="group flex w-full animate-fade-in-up flex-col ${isUser ? 'items-end' : 'items-start'}">
+                    <div class="relative max-w-[85%] sm:max-w-[75%] px-6 py-4 shadow-sm transition-all ${
+                        isUser 
+                            ? 'bg-cherry-600 text-white rounded-2xl rounded-tr-sm shadow-cherry-600/20' 
+                            : message.isError 
+                                ? 'bg-red-50 text-red-800 rounded-2xl rounded-tl-sm border border-red-100'
+                                : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-beige-200 shadow-sm'
+                    }">
+                        <div class="text-[15px] leading-relaxed break-words ${isUser ? 'text-white font-light' : 'font-light markdown-content'}">
+                            ${formattedContent}
+                        </div>
+                    </div>
+                    ${metaHtml}
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function appendTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'typing-indicator';
+            indicator.className = 'w-full flex justify-start pl-2 animate-fade-in-up';
+            indicator.innerHTML = `
+                <div class="bg-white px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm border border-beige-200 w-16 h-[46px] flex items-center justify-center">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: -0.3s;"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: -0.15s;"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(indicator);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function copyMessage(messageId) {
+            const session = getCurrentSession();
+            const message = session?.messages.find(m => m.id === messageId);
+            if (message) {
+                navigator.clipboard.writeText(message.content);
+            }
+        }
+
+        // ============================================
+        // CHAT FUNCTIONALITY (Preserved from original)
+        // ============================================
+        chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const input = document.getElementById('query-input');
-            const mode = document.getElementById('mode-select').value;
-            const query = input.value;
-            if (!query) return;
+            const query = queryInput.value.trim();
+            if (!query || !currentSessionId) return;
 
-            // UI Update (User)
-            log.innerHTML += `<div class="mb-2"><span class="text-green-400 font-bold">[USER]:</span> <span class="text-white">${query}</span></div>`;
-            input.value = '';
-            log.scrollTop = log.scrollHeight;
+            const session = getCurrentSession();
+            const startTime = Date.now();
 
-            // Thinking Indicator
-            const thinkingDiv = document.createElement('div');
-            thinkingDiv.id = "thinking-indicator";
-            thinkingDiv.className = "mb-2 text-gray-500";
-            thinkingDiv.innerHTML = `<span class="text-blue-400 font-bold">[AI]:</span> <span class="thinking">...</span>`;
-            log.appendChild(thinkingDiv);
-            log.scrollTop = log.scrollHeight;
+            // Add user message
+            const userMessage = {
+                id: generateId(),
+                role: 'user',
+                content: query,
+                createdAt: startTime,
+            };
+            session.messages.push(userMessage);
+            updateSessionTitle(session, query);
+            
+            queryInput.value = '';
+            updateSendButton();
+            renderMessages();
+            appendTypingIndicator();
 
-            // API Call
+            // API Call (preserved from original)
             const formData = new FormData();
             formData.append('query', query);
-            formData.append('mode', mode);
+            formData.append('mode', modeSelect.value);
 
             try {
                 const res = await fetch('/chat', { method: 'POST', body: formData });
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
 
-                let isFirstToken = true;
-                let aiTextSpan = null;
+                removeTypingIndicator();
+
+                // Create AI message
+                const aiMessage = {
+                    id: generateId(),
+                    role: 'model',
+                    content: '',
+                    createdAt: Date.now(),
+                    model: 'PIL-VAE',
+                };
+                session.messages.push(aiMessage);
+                
+                // Create message element for streaming
+                const msgWrapper = document.createElement('div');
+                msgWrapper.className = 'group flex w-full animate-fade-in-up flex-col items-start';
+                msgWrapper.innerHTML = `
+                    <div class="relative max-w-[85%] sm:max-w-[75%] px-6 py-4 shadow-sm transition-all bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-beige-200 shadow-sm">
+                        <div id="streaming-content" class="text-[15px] leading-relaxed break-words font-light markdown-content"></div>
+                    </div>
+                `;
+                messagesContainer.appendChild(msgWrapper);
+                const streamingContent = document.getElementById('streaming-content');
+                scrollToBottom();
+
+                let buffer = '';
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    if (isFirstToken) {
-                        const indicator = document.getElementById('thinking-indicator');
-                        if (indicator) indicator.remove();
-                        
-                        const aiMsgDiv = document.createElement('div');
-                        aiMsgDiv.className = "mb-2 break-words whitespace-pre-wrap";
-                        aiMsgDiv.innerHTML = `<span class="text-blue-400 font-bold">[AI]:</span> <span class="text-gray-300"></span>`;
-                        log.appendChild(aiMsgDiv);
-                        aiTextSpan = aiMsgDiv.querySelector('span.text-gray-300');
-                        isFirstToken = false;
-                    }
-
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
                     for (const line of lines) {
+                        if (!line.trim()) continue;
                         try {
                             const data = JSON.parse(line);
                             if (data.type === 'token') {
-                                aiTextSpan.innerText += data.content;
-                                log.scrollTop = log.scrollHeight;
+                                aiMessage.content += data.content;
+                                streamingContent.innerHTML = marked.parse(aiMessage.content);
+                                scrollToBottom();
                             } else if (data.type === 'stats') {
-                                latencyDisp.innerText = data.latency;
+                                latencyDisplay.innerText = data.latency;
                             } else if (data.type === 'meta') {
-                                // Update Latency
                                 if (data.stats && data.stats.latency) {
-                                    latencyDisp.innerText = data.stats.latency;
+                                    latencyDisplay.innerText = data.stats.latency;
+                                    const latencyMs = parseFloat(data.stats.latency.replace('s', '')) * 1000;
+                                    aiMessage.latency = latencyMs;
                                 }
-
-                                // Render Sources
                                 if (data.sources && data.sources.length > 0) {
-                                    const sourcesDiv = document.createElement('div');
-                                    sourcesDiv.className = "mt-4 p-3 bg-white/5 rounded border border-white/10 text-xs";
-                                    sourcesDiv.innerHTML = `<div class="text-gray-500 font-bold mb-2">SOURCES</div>`;
-                                    
-                                    const list = document.createElement('ul');
-                                    list.className = "space-y-1";
-                                    
-                                    data.sources.forEach(src => {
-                                        const li = document.createElement('li');
-                                        li.innerHTML = `<a href="${src.url}" target="_blank" class="text-blue-400 hover:underline truncate block" title="${src.snippet}">[${src.title}]</a>`;
-                                        list.appendChild(li);
-                                    });
-                                    sourcesDiv.appendChild(list);
-                                    log.lastElementChild.appendChild(sourcesDiv);
+                                    aiMessage.sources = data.sources.map(s => s.url);
                                 }
-
-                                // Render Actions
-                                if (data.actions && data.actions.length > 0) {
-                                    const actionsDiv = document.createElement('div');
-                                    actionsDiv.className = "mt-2 flex gap-2";
-                                    
-                                    // Copy Button
-                                    if (data.actions.includes('copy')) {
-                                        const copyBtn = document.createElement('button');
-                                        copyBtn.className = "text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-gray-300";
-                                        copyBtn.innerText = "Copy";
-                                        copyBtn.onclick = () => {
-                                            navigator.clipboard.writeText(aiTextSpan.innerText);
-                                            copyBtn.innerText = "Copied!";
-                                            setTimeout(() => copyBtn.innerText = "Copy", 2000);
-                                        };
-                                        actionsDiv.appendChild(copyBtn);
-                                    }
-
-                                    // Thumbs Up
-                                    if (data.actions.includes('thumbs_up')) {
-                                        const upBtn = document.createElement('button');
-                                        upBtn.className = "text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-gray-300";
-                                        upBtn.innerText = "👍";
-                                        upBtn.onclick = () => {
-                                            upBtn.classList.add('text-green-400');
-                                        };
-                                        actionsDiv.appendChild(upBtn);
-                                    }
-
-                                    // Thumbs Down
-                                    if (data.actions.includes('thumbs_down')) {
-                                        const downBtn = document.createElement('button');
-                                        downBtn.className = "text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-gray-300";
-                                        downBtn.innerText = "👎";
-                                        downBtn.onclick = () => {
-                                            downBtn.classList.add('text-red-400');
-                                        };
-                                        actionsDiv.appendChild(downBtn);
-                                    }
-
-                                    log.lastElementChild.appendChild(actionsDiv);
+                                
+                                // Speak the response
+                                if (ttsEnabled && aiMessage.content) {
+                                    speakText(aiMessage.content);
                                 }
-                                log.scrollTop = log.scrollHeight;
                             }
                         } catch (e) {
-                            console.error("Error parsing JSON chunk", e);
+                            // Not valid JSON, might be partial - ignore
                         }
                     }
                 }
+                
+                // Process any remaining buffer
+                if (buffer.trim()) {
+                    try {
+                        const data = JSON.parse(buffer);
+                        if (data.type === 'token') {
+                            aiMessage.content += data.content;
+                        }
+                    } catch (e) {
+                        // Ignore parse errors
+                    }
+                }
+                
+                // Final render with meta info
+                renderMessages();
+                renderSessions();
             } catch (err) {
                 console.error(err);
-                const indicator = document.getElementById('thinking-indicator');
-                if (indicator) indicator.remove();
-                log.innerHTML += `<div class="text-red-500">[ERROR]: Connection lost.</div>`;
+                removeTypingIndicator();
+                const errorMessage = {
+                    id: generateId(),
+                    role: 'model',
+                    content: 'Connection error. Please try again.',
+                    isError: true,
+                    createdAt: Date.now(),
+                };
+                session.messages.push(errorMessage);
+                renderMessages();
             }
         });
 
-        // Sidebar Toggle
-        const btnSidebar = document.getElementById('btn-sidebar');
-        const sidebar = document.querySelector('aside');
-        btnSidebar.addEventListener('click', () => {
-            const isHidden = sidebar.classList.contains('hidden') && window.getComputedStyle(sidebar).display === 'none';
-            // If hidden (mobile default) or manually hidden
-            if (isHidden || sidebar.classList.contains('hidden')) {
-                // Show it
-                sidebar.classList.remove('hidden');
-                sidebar.classList.add('md:block');
+        // ============================================
+        // INPUT HANDLING
+        // ============================================
+        queryInput.addEventListener('input', function() {
+            // Auto-resize textarea
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+            updateSendButton();
+        });
+
+        queryInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        function updateSendButton() {
+            const hasText = queryInput.value.trim().length > 0;
+            if (hasText) {
+                btnSend.classList.remove('bg-beige-100', 'text-gray-400', 'cursor-not-allowed');
+                btnSend.classList.add('bg-cherry-600', 'text-white', 'shadow-lg', 'shadow-cherry-600/20', 'hover:bg-cherry-700');
             } else {
-                // Hide it
-                sidebar.classList.add('hidden');
-                sidebar.classList.remove('md:block');
+                btnSend.classList.add('bg-beige-100', 'text-gray-400', 'cursor-not-allowed');
+                btnSend.classList.remove('bg-cherry-600', 'text-white', 'shadow-lg', 'shadow-cherry-600/20', 'hover:bg-cherry-700');
+            }
+        }
+
+        // ============================================
+        // SIDEBAR
+        // ============================================
+        const toggleBtn = document.getElementById('btn-sidebar-toggle');
+        const mainContent = document.getElementById('main-content');
+        
+        function openSidebar() {
+            sidebar.style.transform = 'translateX(0)';
+            if (window.innerWidth >= 1024) {
+                mainContent.style.marginLeft = '288px';
+            } else {
+                sidebarOverlay.classList.remove('hidden');
+            }
+            document.getElementById('menu-icon').classList.add('hidden');
+            document.getElementById('close-icon').classList.remove('hidden');
+            document.getElementById('chevron-left').classList.remove('hidden');
+            document.getElementById('chevron-right').classList.add('hidden');
+            sidebarOpen = true;
+        }
+
+        function closeSidebar() {
+            sidebar.style.transform = 'translateX(-100%)';
+            mainContent.style.marginLeft = '0px';
+            sidebarOverlay.classList.add('hidden');
+            document.getElementById('menu-icon').classList.remove('hidden');
+            document.getElementById('close-icon').classList.add('hidden');
+            document.getElementById('chevron-left').classList.add('hidden');
+            document.getElementById('chevron-right').classList.remove('hidden');
+            sidebarOpen = false;
+        }
+
+        function toggleSidebar() {
+            sidebarOpen ? closeSidebar() : openSidebar();
+        }
+
+        document.getElementById('btn-mobile-sidebar').addEventListener('click', toggleSidebar);
+        toggleBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        document.getElementById('btn-new-chat').addEventListener('click', createNewChat);
+
+        // ============================================
+        // TEXT-TO-SPEECH (Preserved from original)
+        // ============================================
+        let voices = [];
+        function loadVoices() {
+            voices = speechSynthesis.getVoices();
+        }
+        loadVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
+        document.getElementById('btn-tts').addEventListener('click', () => {
+            ttsEnabled = !ttsEnabled;
+            const indicator = document.getElementById('tts-indicator');
+            const status = document.getElementById('tts-status');
+            
+            if (ttsEnabled) {
+                indicator.classList.remove('bg-cherry-700');
+                indicator.classList.add('bg-green-500');
+                status.innerText = 'ON';
+                status.classList.remove('text-cherry-400');
+                status.classList.add('text-green-400');
+            } else {
+                indicator.classList.add('bg-cherry-700');
+                indicator.classList.remove('bg-green-500');
+                status.innerText = 'OFF';
+                status.classList.add('text-cherry-400');
+                status.classList.remove('text-green-400');
+                speechSynthesis.cancel();
             }
         });
 
-        // New Chat
-        const btnNewChat = document.getElementById('btn-new-chat');
-        btnNewChat.addEventListener('click', () => {
-            log.innerHTML = `
-                <div class="mb-2">
-                    <span class="text-blue-400 font-bold">[SYSTEM]:</span>
-                    <span class="text-gray-300">Kernel loaded. Memory hydrated with core tensors. Ready for queries.</span>
-                </div>
-            `;
+        function speakText(text) {
+            if (!ttsEnabled || !text) return;
+            
+            let cleanText = text
+                .replace(/\*\*/g, '')
+                .replace(/\[[\d.]+\]/g, '')
+                .replace(/#{1,6}\s/g, '')
+                .replace(/\n+/g, '. ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            const preferredVoices = voices.filter(v => 
+                v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha'))
+            );
+            if (preferredVoices.length > 0) {
+                utterance.voice = preferredVoices[0];
+            }
+            
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // ============================================
+        // VOICE DICTATION
+        // ============================================
+        if (typeof window !== 'undefined') {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                recognition.onstart = () => {
+                    isDictating = true;
+                    const btn = document.getElementById('btn-dictate');
+                    btn.classList.add('bg-cherry-100', 'text-cherry-600', 'animate-pulse');
+                    btn.classList.remove('bg-transparent', 'text-gray-400');
+                };
+                
+                recognition.onend = () => {
+                    isDictating = false;
+                    const btn = document.getElementById('btn-dictate');
+                    btn.classList.remove('bg-cherry-100', 'text-cherry-600', 'animate-pulse');
+                    btn.classList.add('bg-transparent', 'text-gray-400');
+                };
+                
+                recognition.onerror = () => {
+                    isDictating = false;
+                    const btn = document.getElementById('btn-dictate');
+                    btn.classList.remove('bg-cherry-100', 'text-cherry-600', 'animate-pulse');
+                    btn.classList.add('bg-transparent', 'text-gray-400');
+                };
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    if (transcript) {
+                        const prefix = queryInput.value && !queryInput.value.endsWith(' ') ? ' ' : '';
+                        queryInput.value += prefix + transcript;
+                        updateSendButton();
+                    }
+                };
+            }
+        }
+
+        document.getElementById('btn-dictate').addEventListener('click', () => {
+            if (!recognition) {
+                console.warn("Speech recognition not supported");
+                return;
+            }
+            if (isDictating) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
         });
 
-        // Modal Logic
-        const modal = document.getElementById('tech-modal');
-        const btnEdgeMode = document.getElementById('btn-edge-mode');
-        const btnCloseModal = document.getElementById('close-modal');
-
-        btnEdgeMode.addEventListener('click', () => {
-            modal.classList.remove('hidden');
+        // ============================================
+        // LIVE MODE (Placeholder)
+        // ============================================
+        document.getElementById('btn-live').addEventListener('click', () => {
+            liveOverlay.classList.remove('hidden');
+            liveOverlay.classList.add('flex');
         });
 
-        btnCloseModal.addEventListener('click', () => {
-            modal.classList.add('hidden');
+        document.getElementById('btn-stop-live').addEventListener('click', () => {
+            liveOverlay.classList.add('hidden');
+            liveOverlay.classList.remove('flex');
         });
 
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.add('hidden');
+        // ============================================
+        // SUGGESTION BUTTONS
+        // ============================================
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                queryInput.value = btn.innerText.replace(/^[^\s]+\s/, ''); // Remove emoji
+                updateSendButton();
+                queryInput.focus();
+            });
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        createNewChat();
+        
+        // Set initial sidebar state based on screen size
+        if (window.innerWidth >= 1024) {
+            openSidebar();
+        } else {
+            mainContent.style.marginLeft = '0px';
+            closeSidebar();
+        }
+
+        // Handle resize - adjust layout when switching between mobile/desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                sidebarOverlay.classList.add('hidden');
+                if (sidebarOpen) {
+                    mainContent.style.marginLeft = '288px';
+                }
+            } else {
+                mainContent.style.marginLeft = '0px';
             }
         });
     </script>
