@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PILVAE" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pil_blue</item>
+        <item name="colorPrimaryDark">@color/pil_blue_dark</item>
+        <item name="colorAccent">@color/pil_accent</item>
+    </style>
+</resources>
